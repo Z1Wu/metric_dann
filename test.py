@@ -1,10 +1,10 @@
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from lib.model import FeatureExtractor
-# from uitls.logging import generate_tensor_board_name
+# from utils.logging import generate_tensor_board_name
 import os
 from lib.mnist_loader import get_val_loader
-from uitls.logging import show_embedding
+from utils.logging import show_embedding
 
 
 exp_root = 'exp/mnist'

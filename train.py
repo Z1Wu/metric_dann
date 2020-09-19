@@ -1,8 +1,8 @@
 from os import write
 from lib.model import FeatureExtractor
 from lib.mnist_loader import get_mnist_loader, get_mnist_m_loader, get_val_loader
-from uitls.misc import ForeverDataIterator
-from uitls.logging import config_tensor_board_writer, configure_logger, AverageMeter, \
+from utils.misc import ForeverDataIterator
+from utils.logging import config_tensor_board_writer, configure_logger, AverageMeter, \
     ProgressMeter, get_current_time, generate_tensor_board_name, show_embedding
 from dalib.adaptation.dann import DomainAdversarialLoss
 from dalib.modules.domain_discriminator import DomainDiscriminator
