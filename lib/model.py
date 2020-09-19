@@ -3,10 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-
 class FeatureTransferModule(nn.Module):
     def __init__(self) -> None:
-        self.super(FeatureTransferModule, self).__init__()
+        super(FeatureTransferModule, self).__init__()
         self.fc1 = nn.Linear(128, 256)
         self.fc2 = nn.Linear(256, 256)
         self.fc3 = nn.Linear(256, 128)
@@ -15,7 +14,7 @@ class FeatureTransferModule(nn.Module):
     def forward(self, x):
         out = F.relu(self.fc1(x))
         out = self.dropout(out)
-        out = F.relu(self.fc2(x))
+        out = F.relu(self.fc2(out))
         out = self.fc3(out)
         out = x + out # residual link
         return out
@@ -61,30 +60,6 @@ class FeatureExtractor(nn.Module):
 
 
     def forward(self, X:torch.Tensor, mode = "feature_generate"):
-        # if mode == "feature_generate":
-        #     out = F.relu(self.conv1_1(X))
-        #     out = F.relu(self.conv1_2(out))
-        #     out = self.maxpool(out)
-
-        #     out = F.relu(self.conv2_1(out))
-        #     out = F.relu(self.conv2_2(out))
-        #     out = self.maxpool(out)
-
-        #     out = F.relu(self.conv3_1(out))
-        #     out	= F.relu(self.conv3_2(out))
-        #     out = self.maxpool(out)
-
-        #     out = torch.flatten(out, start_dim=1)
-        #     out = F.relu(self.fc1(out))
-        #     out = self.fc2(out)
-        #     f_out = F.normalize(out, 2) * self.scale_factor # norm and scale
-        #     return f_out
-        # elif mode == "feature_transfrom":
-        #     # input feature 
-        #     out = self.feature_transfer(X)
-        #     g_out = F.normalize(out, 2) * self.scale_factor # norm and scale
-        #     return g_out
-
         out = F.relu(self.conv1_1(X))
         out = F.relu(self.conv1_2(out))
         out = self.maxpool(out)
@@ -105,3 +80,9 @@ class FeatureExtractor(nn.Module):
         g_out = F.normalize(out, 2) * self.scale_factor # norm and scale
         return f_out, g_out
 
+if __name__ == '__main__':
+    bn, c, h, w = 5, 3, 32, 32
+    model = FeatureExtractor()
+    input = torch.randn((bn, c, h, w))
+    f, g = model(input)
+    print(f.shape, g.shape)

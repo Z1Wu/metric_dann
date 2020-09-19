@@ -9,7 +9,7 @@ import argparse
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
-    def __init__(self, name=None, fmt=':f', tb_tag=None, writer:SummaryWriter = None):
+    def __init__(self, name=None, fmt=':5.2f', tb_tag=None, writer:SummaryWriter = None):
         self.name = name
         self.fmt = fmt
         self.tb_tag = tb_tag
@@ -141,7 +141,7 @@ def config_tensor_board_writer(bn, lr, logger, runner_name='', base_dir='runs', 
     return SummaryWriter(log_dir=log_dir)
 
 
-def show_embedding(backbone, data_loader_list, tag, epoch, writer, device):
+def show_embedding(backbone, data_loader_list, tag, epoch, writer, device, type = 'src'):
     backbone.eval()
     with torch.no_grad():
         feature:torch.Tensor = torch.Tensor()
@@ -149,7 +149,8 @@ def show_embedding(backbone, data_loader_list, tag, epoch, writer, device):
         for data_loader in data_loader_list:
             for img, label in data_loader:
                 img = img.to(device)
-                feat = backbone(img)
+                f, g = backbone(img)
+                feat = g if g == 'src' else f
                 feature = torch.cat([feature, feat.cpu()], 0)
                 tot_label = torch.cat([tot_label, label], 0)
         writer.add_embedding(feature, tot_label, tag = tag, global_step=epoch)

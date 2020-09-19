@@ -14,13 +14,13 @@ from pytorch_metric_learning.losses.n_pairs_loss import NPairsLoss
 from torch.utils.tensorboard import SummaryWriter
 from lib.evaluation import NMI_eval
 
-cls_num, sample_num_per_cls = 5, 2
+cls_num, sample_num_per_cls = 5, 6 # increase the batch size
 exp_root = './exp'
 bn_size = cls_num * sample_num_per_cls
 lr = 0.0003
 weight_decay = 0.0001
 epoch = 30
-iter_per_epoch = 3000 # every epoch will iter 
+iter_per_epoch = 5000 # iteration per epoch
 print_freq = 500
 device = torch.device("cuda")
 
@@ -40,6 +40,7 @@ exp_time = get_current_time('%m%d%H%M')
 w_da = 0.3
 w_fea_recon_src = None
 w_fea_recon_tar = None
+# best_model_path = os.path.join(model_dir, ')
 
 
 def parse_arg():
@@ -93,7 +94,7 @@ def train(feature_extractor:FeatureExtractor, domain_adv:DomainAdversarialLoss, 
     # loss
     loss_rec = AverageMeter('tot_loss', tb_tag='Loss/tot', writer=writer)
     loss_lb_rec = AverageMeter('lb_loss', tb_tag='Loss/lb', writer=writer)
-    loss_lb_rec = AverageMeter('lb_g_loss', tb_tag='Loss/lb_g', writer=writer)
+    loss_lb_g_rec = AverageMeter('lb_g_loss', tb_tag='Loss/lb_g', writer=writer)
     # loss_ulb_rec = AverageMeter('ulb_loss', tb_tag='Loss/ulb')
     loss_da_rec = AverageMeter('da_loss', tb_tag='Loss/da', writer=writer)
 
@@ -101,12 +102,13 @@ def train(feature_extractor:FeatureExtractor, domain_adv:DomainAdversarialLoss, 
     da_acc_rec = AverageMeter('da_acc', tb_tag='Acc/da', writer=writer)
 
     n_iter = 0
+    best_nmi = 0
     for e_i in range(epoch):
         feature_extractor.train()
         domain_adv.train()
         progress = ProgressMeter(
             iter_per_epoch,
-            [loss_rec, loss_lb_rec, loss_da_rec,da_acc_rec],
+            [loss_lb_g_rec, loss_lb_rec, loss_da_rec,da_acc_rec],
             prefix="Epoch: [{}]".format(e_i),
             logger=global_logger
         )
@@ -127,6 +129,7 @@ def train(feature_extractor:FeatureExtractor, domain_adv:DomainAdversarialLoss, 
             loss_s = npair_loss(f_s, l_s) # get n-pair loss on source domain
             loss_s_g = npair_loss(g_s, l_s) # get n-pair loss on source domain
             loss_lb_rec.update(loss_s.item(), x_s.size(0), iter=n_iter)
+            loss_lb_g_rec.update(loss_s_g.item(), x_s.size(0), iter=n_iter)
             
             # dann
             # da_loss = domain_adv(f_s,f_t)
@@ -135,7 +138,7 @@ def train(feature_extractor:FeatureExtractor, domain_adv:DomainAdversarialLoss, 
             loss_da_rec.update(da_loss.item(), f.size(0), iter=n_iter)
             da_acc_rec.update(domain_acc.item(), f.size(0), iter=n_iter)
 
-            loss = loss_s + loss_s_g + w_da * da_loss
+            loss = 0.5 * (loss_s + loss_s_g) + w_da * da_loss
             # loss = loss_s
             optimizer.zero_grad()
             loss.backward()
@@ -151,10 +154,14 @@ def train(feature_extractor:FeatureExtractor, domain_adv:DomainAdversarialLoss, 
             # show_embedding(backbone, [src_val_loader], tag=f'src_{e_i}', epoch=e_i, writer, device)
             # show_embedding(backbone, [tar_val_loader], tag=f'tar_{e_i}', epoch=e_i, writer, device)
             
-            global_logger.info(f'test on train set')
-            NMI_eval(feature_extractor, src_val_loader, 5, device, type='src')
-            global_logger.info(f'test on test set')
-            NMI_eval(feature_extractor, src_val_loader, 5, device, type='tar')
+            nmi = NMI_eval(feature_extractor, src_val_loader, 5, device, type='src')
+            global_logger.info(f'test on train set nmi: {nmi}')
+            nmi = NMI_eval(feature_extractor, tar_val_loader, 5, device, type='tar')
+            global_logger.info(f'test on test set nmi: {nmi}')
+            if nmi > best_nmi:
+                global_logger.info(f"save best model to {model_dir}")
+                torch.save(backbone.state_dict(), os.path.join(model_dir, 'minst_best_model.pth'))
+                best_nmi = nmi
 
 
 if __name__ == "__main__":
@@ -171,13 +178,15 @@ if __name__ == "__main__":
     # setup dataloader
     src_train_loader = get_mnist_m_loader(
         dataset_root = './dataset/MNIST-M', 
-        train=True, 
-        label_filter=lambda x : x in src_domain_class
+        label_filter=lambda x : x in src_domain_class,
+        sample_per_cls=sample_num_per_cls,
+        cls_num=cls_num
     )
     tar_train_loader = get_mnist_loader(
         dataset_root = './dataset/MNIST', 
-        train=True,
-        label_filter=lambda x : x in tar_domain_class
+        label_filter=lambda x : x in tar_domain_class,
+        sample_per_cls=sample_num_per_cls,
+        cls_num=cls_num
     )
     src_iter, tar_iter = ForeverDataIterator(src_train_loader), ForeverDataIterator(tar_train_loader)
     
@@ -203,6 +212,6 @@ if __name__ == "__main__":
     # save model into file
     saved_model_path = os.path.join(model_dir, f'minst_backbone_{exp_time}.pth')
     torch.save(backbone.state_dict(), saved_model_path)
-    global_logger.info("model saved to {}.".format(saved_model_path))
+    global_logger.info("final model saved to {}.".format(saved_model_path))
     writer.close()
     

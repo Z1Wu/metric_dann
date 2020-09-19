@@ -174,84 +174,60 @@ def color_inverse(x:torch.Tensor):
     return 1 - x
 
 
-def get_mnist_loader(dataset_root, train = True, label_filter = None): 
+def get_mnist_loader(dataset_root, label_filter = None, sample_per_cls = 2, cls_num = 5): 
     """
     这里通过 resize 和 增加 channel 的方式，让 mnist 的图片尺寸变成 3 * 32 * 32
     """
     mean = (0.29730626, 0.29918741, 0.27534935)
     std = (0.32780124, 0.32292358, 0.32056796)
-    if train:
-        # TODO: 按照论文的说法这里需要使用 color intensity invers 以及 gray scale to rgb 的方法把这个 
-        # mnist 的图片转化成 32 * 32 * 3 的图片。
-        mnist_transform = transforms.Compose([
-            # randomly color digit and background:
-            transforms.Resize(32),
-            transforms.ToTensor(),
-            transforms.Lambda(color_inverse),
-            transforms.Normalize(mean, std)
-        ])
-        cls_num, sample_per_cls = 5, 2
-        dataset = MNIST_base( # target domain
-            root=dataset_root,
-            train=train,
-            transform=mnist_transform, 
-            label_filter=label_filter
-        )
-        batch_sampler = MPerClassSampler(dataset.labels, 2)
-        loader = DataLoader(
-            dataset,
-            batch_size= sample_per_cls * cls_num,
-            sampler=batch_sampler,
-            num_workers=2,
-            drop_last=True
-        )
-        return loader
-    else:
-        pass
+    # TODO: 按照论文的说法这里需要使用 color intensity invers 以及 gray scale to rgb 的方法把这个 
+    # mnist 的图片转化成 32 * 32 * 3 的图片。
+    mnist_transform = transforms.Compose([
+        # randomly color digit and background:
+        transforms.Resize(32),
+        transforms.ToTensor(),
+        transforms.Lambda(color_inverse),
+        transforms.Normalize(mean, std)
+    ])
+    dataset = MNIST_base( # target domain
+        root=dataset_root,
+        train=True,
+        transform=mnist_transform, 
+        label_filter=label_filter
+    )
+    batch_sampler = MPerClassSampler(dataset.labels, sample_per_cls)
+    loader = DataLoader(
+        dataset,
+        batch_size= sample_per_cls * cls_num,
+        sampler=batch_sampler,
+        num_workers=2,
+        drop_last=True
+    )
+    return loader
 
-def get_mnist_m_loader(dataset_root, label_filter = None, train = True):
+def get_mnist_m_loader(dataset_root, label_filter = None, sample_per_cls = 2, cls_num = 5):
     mean = (0.29730626, 0.29918741, 0.27534935)
     std = (0.32780124, 0.32292358, 0.32056796)
-    if train:
-        mnistm_transform = transforms.Compose([
-            transforms.Resize(32),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std= std)
-        ])
-        dataset = MNIST_base( # source domain
-            root=dataset_root,
-            train=train,
-            label_filter=label_filter,
-            transform=mnistm_transform
-        )
-        cls_num, sample_per_cls = 5, 2
-        batch_sampler = MPerClassSampler(dataset.labels, 2)
-        loader = DataLoader(
-            dataset, 
-            batch_size= sample_per_cls * cls_num, 
-            sampler=batch_sampler,
-            num_workers=2,
-            drop_last=True
-        )
-        return loader
-    else:
-        mnistm_transform = transforms.Compose([
-            transforms.Resize(32),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std)
-        ])
-        dataset = MNIST_base( # source domain
-            root=dataset_root,
-            train=train,
-            label_filter=label_filter,
-            transform=mnistm_transform
-        )
-        loader = DataLoader(
-            dataset, 
-            batch_size= 256, 
-            num_workers=2,
-            drop_last=True
-        )
+    mnistm_transform = transforms.Compose([
+        transforms.Resize(32),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=mean, std= std)
+    ])
+    dataset = MNIST_base( # source domain
+        root=dataset_root,
+        train=True,
+        label_filter=label_filter,
+        transform=mnistm_transform
+    )
+    batch_sampler = MPerClassSampler(dataset.labels, sample_per_cls)
+    loader = DataLoader(
+        dataset, 
+        batch_size= sample_per_cls * cls_num, 
+        sampler=batch_sampler,
+        num_workers=2,
+        drop_last=True
+    )
+    return loader
         
 def get_val_loader(dataset_root,  batch_size, label_filter = None,train = True):
     mean = (0.29730626, 0.29918741, 0.27534935)
