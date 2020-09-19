@@ -9,9 +9,9 @@ import itertools
 import torch
 import os
 
-
 def source_only_train(feature_extractor:FeatureExtractor, 
     domain_adv:DomainAdversarialLoss, 
+    metric_loss:torch.nn.Module,
     src_iter:ForeverDataIterator, 
     tar_iter:ForeverDataIterator, 
     src_val_loader, tar_val_loader,
@@ -25,9 +25,7 @@ def source_only_train(feature_extractor:FeatureExtractor,
     logger = args.logger
     device = args.device
     model_dir = args.model_dir
-
-    npair_loss = NPairsLoss()  # n pair loss
-
+    
     # loss
     loss_rec = AverageMeter('tot_loss', tb_tag='Loss/tot', writer=args.writer)
     loss_lb_rec = AverageMeter('lb_loss', tb_tag='Loss/lb', writer=args.writer)
@@ -58,8 +56,8 @@ def source_only_train(feature_extractor:FeatureExtractor,
             g_s, g_t = g.chunk(2, dim=0)
             
             # source only part
-            loss_s = npair_loss(f_s, l_s) # get n-pair loss on source domain
-            loss_s_g = npair_loss(g_s, l_s) # get n-pair loss on source domain
+            loss_s = metric_loss(f_s, l_s) # get n-pair loss on source domain
+            loss_s_g = metric_loss(g_s, l_s) # get n-pair loss on source domain
             loss_lb_rec.update(loss_s.item(), x_s.size(0), iter=n_iter)
             loss_lb_g_rec.update(loss_s_g.item(), x_s.size(0), iter=n_iter)
             
