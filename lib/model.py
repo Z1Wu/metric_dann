@@ -3,6 +3,23 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
+
+class FeatureTransferModule(nn.Module):
+    def __init__(self) -> None:
+        self.super(FeatureTransferModule, self).__init__()
+        self.fc1 = nn.Linear(128, 256)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc3 = nn.Linear(256, 128)
+        self.dropout = nn.Dropout(0.5)
+
+    def forward(self, x):
+        out = F.relu(self.fc1(x))
+        out = self.dropout(out)
+        out = F.relu(self.fc2(x))
+        out = self.fc3(out)
+        out = x + out # residual link
+        return out
+
 class FeatureExtractor(nn.Module):
     """
     input:
@@ -28,6 +45,8 @@ class FeatureExtractor(nn.Module):
         
         self.scale_factor = 2 ** 0.5
 
+        self.feature_transfer = FeatureTransferModule()
+
         for m in self.modules():  # parameter 
             if isinstance(m, nn.Conv2d):
                 # TODO: init module, should output name and 
@@ -39,9 +58,33 @@ class FeatureExtractor(nn.Module):
             elif isinstance(m, nn.Linear):
                 torch.nn.init.kaiming_normal_(m.weight)
                 torch.nn.init.constant_(m.bias, 0)
-        
 
-    def forward(self, X:torch.Tensor):
+
+    def forward(self, X:torch.Tensor, mode = "feature_generate"):
+        # if mode == "feature_generate":
+        #     out = F.relu(self.conv1_1(X))
+        #     out = F.relu(self.conv1_2(out))
+        #     out = self.maxpool(out)
+
+        #     out = F.relu(self.conv2_1(out))
+        #     out = F.relu(self.conv2_2(out))
+        #     out = self.maxpool(out)
+
+        #     out = F.relu(self.conv3_1(out))
+        #     out	= F.relu(self.conv3_2(out))
+        #     out = self.maxpool(out)
+
+        #     out = torch.flatten(out, start_dim=1)
+        #     out = F.relu(self.fc1(out))
+        #     out = self.fc2(out)
+        #     f_out = F.normalize(out, 2) * self.scale_factor # norm and scale
+        #     return f_out
+        # elif mode == "feature_transfrom":
+        #     # input feature 
+        #     out = self.feature_transfer(X)
+        #     g_out = F.normalize(out, 2) * self.scale_factor # norm and scale
+        #     return g_out
+
         out = F.relu(self.conv1_1(X))
         out = F.relu(self.conv1_2(out))
         out = self.maxpool(out)
@@ -57,6 +100,8 @@ class FeatureExtractor(nn.Module):
         out = torch.flatten(out, start_dim=1)
         out = F.relu(self.fc1(out))
         out = self.fc2(out)
-        out = F.normalize(out, 2) * self.scale_factor # norm and scale
+        f_out = F.normalize(out, 2) * self.scale_factor # norm and scale
+        out = self.feature_transfer(f_out)
+        g_out = F.normalize(out, 2) * self.scale_factor # norm and scale
+        return f_out, g_out
 
-        return out

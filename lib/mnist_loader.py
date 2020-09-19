@@ -253,7 +253,7 @@ def get_mnist_m_loader(dataset_root, label_filter = None, train = True):
             drop_last=True
         )
         
-def get_val_loader(dataset_root, label_filter, batch_size, train = True):
+def get_val_loader(dataset_root,  batch_size, label_filter = None,train = True):
     mean = (0.29730626, 0.29918741, 0.27534935)
     std = (0.32780124, 0.32292358, 0.32056796)
     mnistm_transform = transforms.Compose([
